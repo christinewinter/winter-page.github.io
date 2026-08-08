@@ -1,0 +1,223 @@
+---
+layout: post
+title:  "An Ice Cube about Syntax Gotchas writing PySpark when knowing Pandas"
+date:   2021-03-30 10:03:30 +0200
+background: '/images/frost.jpg'
+categories: python learning
+tags: [python, learning]
+---
+<h2>Syntax Gotchas writing PySpark when knowing Pandas </h2>
+<p>
+If you have some basic knowledge in data analysis with Python Pandas and are curious about PySpark and don't know where to start, tag along.</p>
+<p>
+    <a href="https://pandas.pydata.org/" target="_blank">
+    Python Pandas</a> encouraged us to leave excel tables behind and to look at data from a coder perspective instead. Data sets became bigger
+    and bigger, turned from data bases to data files and into data lakes. Some smart minds from
+    <a target="_blank" href="http://spark.apache.org/">
+    Apache</a> blessed us with the Scala based
+    framework Spark to process the bigger amounts in a reasonable time. Since Python is the go to language for data science nowadays,
+    there was a Python API available soon that’s called
+    <a href="https://spark.apache.org/docs/latest/api/python/index.html" target="_blank"> PySpark</a>.
+</p>
+<p>
+For a while now I am trying to conquer this Spark interface with its non-pythonic syntax that everybody in the big data world praises.
+    It took me a few attempts and it’s still work in progress. However in this post I want to show you, who is also starting learning PySpark,
+    how to replicate the same analysis you would otherwise do with Pandas.</p>
+<p>
+The data analysis example we are going to look at you can find in the book
+    <a target="_blank" href="https://wesmckinney.com/pages/book.html">
+    "Python for Data Analysis"</a> by Wes McKinney.
+    In that analysis, the aim is to find out the top ranked movies from the MovieLens 1M data set, which is
+    acquired and maintained by the
+    <a href="https://grouplens.org/" target="_blank">
+    GroupLens</a> Research project from the University of Minnesota.</p>
+<p>
+    As a coding framework I used
+    <a href="https://www.kaggle.com/" target="_blank">
+    Kaggle</a>, since it comes with the convenience of notebooks that have the basic data science modules installed and are ready to go with two clicks.
+</p>
+<p>
+   The complete analysis and the Pyspark code you can also find in
+    <a href="https://www.kaggle.com/christine12/movielens-1m-dataset-pyspark" target="_blank">
+        <b>this Kaggle notebook</b></a> and the Pandas code in
+    <a href="https://www.kaggle.com/christine12/movielens-1m-dataset-python-pandas" target="_blank">
+        <b>this one</b></a>. We won’t replicate the same analysis here, but instead focus on the syntax differences when
+    handling Pandas and Pyspark dataframes. I will always show the Pandas code first following with the PySpark equivalent.
+</p>
+<p>
+The basic functions that we need for this analysis are:
+<ul>
+    <li>Loading data from csv format</li>
+    <li>Combining datasets from different tables</li>
+    <li>Extracting information</li>
+</ul>
+
+<h4>Loading data</h4>
+
+<p>
+Pandas has different
+    <a href="https://pandas.pydata.org/docs/reference/io.html" target="_blank">
+    read functions</a>, which make it easy to import data depending on the file type the data is stored in.
+<pre><code>
+# Pandas
+pd.read_table(path_to_file, sep='::', header=None, names=column_names, engine='python')
+</code></pre>
+</p>
+<p>
+    With PySpark we first need to create a
+    <a href="https://spark.apache.org/docs/latest/sql-getting-started.html" target="_blank">
+    Spark Context</a> as the entry point to Sparks functionality. Not that the indentation might not match when you copy-paste this into your code.
+<pre><code>
+# PySpark
+from pyspark.sql import SparkSession
+spark = SparkSession.Builder().getOrCreate() #--> Spark Context
+spark.read                        #--> what do you want to do
+    .format("csv")                #--> which format is the file
+    .option("delimiter", "::")    #--> specify delimiter that's used
+    .option("inferSchema", "true")#--> default value type is string
+    .load(path_to_file)            #--> file path
+</code> </pre>
+</p>
+<h4>Combining Datasets</h4>
+
+<p>
+The default function for combining datasets in Pandas is
+    <a href="https://pandas.pydata.org/pandas-docs/stable/user_guide/merging.html" target="_blank"><b>merge()</b></a>,
+    which combines datasets on one or
+    multiple columns. Even Pandas <b>join()</b> function uses merge with an index column under the hood. Ratings, users and movies are in this code snippet Pandas datframes that share respective columns, so we can just call the merge function. In the case of name mismatch, we would need to use the join() instead.
+<pre><code>
+# Pandas
+data = pd.merge(pd.merge(ratings, users), movies)
+</code></pre>
+</p>
+
+<p>
+In PySpark there is no merge function, the default here is join() on a selection of columns. Otherwise it looks fairly similar.
+<pre><code>
+# PySpark
+data = ratings.join(users, ["user_id"]).join(movies, ["movie_id"])
+</code></pre>
+</p>
+
+<h4>Extracting Information</h4>
+
+<p>
+Now that we have our data in the form that we can work with we can take a look how to actually extract the content.
+</p>
+<h5>Show row entries</h5>
+<p>
+Pandas dataframes derive from numpy arrays and thereby elements can be accessed by using square backets. If we want to
+    see the first 5 elements of a table we would do it in this way:
+<pre><code>
+# Pandas
+users[:5]
+</code></pre>
+</p>
+
+<p>
+In Spark dataframes are objects and therefore we need to use functions.
+    In the case if showing the first 5 rows we can use <b>show()</b> which derives from the underlying SQL syntax
+    used by Spark dataframes. The function show is just a way to represent the dataset, if you would like to create a
+    new dataframe from a selection of entries, you would need to use <b>take()</b>.
+<pre><code>
+# PySpark
+users.show(5) # --> print result
+users.take(5) # --> list of Row() objects
+</code></pre>
+</p>
+
+<h5>Filtering</h5>
+<p>
+In pandas, we can filter in different ways. One of the functions we can use is <b>loc</b> which is a label based filter to access rows or columns. In the data analysis example, we want to filter all rows in a dataframe that occur in a list of titles.
+<pre><code>
+# Pandas
+mean_ratings = mean_ratings.loc[active_titles]
+</code></pre>
+</p>
+<p>
+PySpark dataframes don’t support <b>loc</b>, so instead we need to use the filter function.
+    An easy way to handle columns in PySpark dataframes is the <b>col()</b> function.
+    Calling that one with the column name, will return the respective column from the dataframe.
+<pre><code>
+# PySpark
+from pyspark.sql.functions import col
+mean_ratings = mean_ratings.filter(col('title').isin(active_titles))
+</code></pre>
+</p>
+
+<h5>Grouping</h5>
+<p>
+Grouping looks very similar in Pandas and PySpark with <b>groupby()</b>. Pandas dataframes have a lot of
+    <a href="https://pandas.pydata.org/docs/reference/groupby.html" target="_blank">
+    aggregating functions</a> implemented for their group-by objects, like median, mean, sum, variance etc.
+    For Pyspark dataframes, it is necessary to import them, for example from pyspark.sql.functions, like
+    the <b>mean()</b> and standard dev <b>stddev()</b>.
+<pre><code>
+# Pandas
+ratings_by_title = data.groupby('title')['rating'].std()
+# PySpark
+from pyspark.sql.functions import mean, stddev
+coldata_sdf.groupBy('title').agg(stddev(col('rating')).alias('std'))
+</code></pre>
+</p>
+
+<h5>Pivot Table</h5>
+<p>
+Pivot tables are commonly used in data analysis. Pandas dataframes arrange and aggregate all in one function
+    <a href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.pivot_table.html" target="_blank">
+        <b>pivot_table</b></a>.
+<pre><code>
+# Pandas
+mean_ratings = data.pivot_table('rating',
+                                index='title',
+                                columns='gender',
+                                aggfunc='mean')
+</code></pre>
+</p>
+<p>
+To replicate the same outcome with Pyspark dataframes, we need to concatenate the grouping, pivot and aggregation functions.
+<pre><code>
+# PySpark
+mean_ratings_pivot = data
+                       .groupBy('title')
+                       .pivot('gender')
+                       .agg(mean('rating'))
+</code></pre>
+</p>
+
+<h5>Sorting</h5>
+<p>
+To sort the values in a column in ascending or descending order we can call the <b>sort_values()</b> function for
+    Pandas dataframes. Remember that the default sorting order is ascending.
+<pre><code>
+# Pandas
+top_female_ratings = mean_ratings.sort_values(by='F',
+                                              ascending=False)
+</code></pre>
+</p>
+<p>
+    In PySpark there is a similar function called <b>sort()</b>, but the column that we want to sort, we have to give
+    as an input. Similarly we could use the function <b>orderBy()</b> and would receive the same result.
+<pre><code>
+# PySpark
+top_female_ratings = mean_ratings.sort(mean_ratings.F.desc())
+</code></pre>
+</p>
+
+<p>
+    Over time the syntax of Pandas and PySpark will change. Maybe we are lucky and they will become more pythonic.
+    There are also modules that combine provide and a Pandas API for PySpark, which is called
+    <a href="https://koalas.readthedocs.io/en/latest/" target="_blank">
+        Koalas</a>.
+    If its performance can compete with PySpark, we might see more of this in the future.
+</p>
+
+<p>
+    I hope you found some helpful tips and please let me know your insights from learning Spark, both syntax and functionality!
+</p>
+
+<p>
+    All the best,
+    <br>
+    Christine
+</p>

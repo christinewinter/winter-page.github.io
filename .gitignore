@@ -1,5 +1,5 @@
-ice_cubes/_site
-ice_cubes/.jekyll-cache
+_site
+.jekyll-cache
 .sass-cache
 .jekyll-metadata
 .idea/*

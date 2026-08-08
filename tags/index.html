@@ -1,0 +1,18 @@
+---
+layout: page
+title: Tags
+background: '/images/frost.jpg'
+permalink: /tags/
+---
+
+{% assign tags = site.tags | sort %}
+{% for tag in tags %}
+{% assign tag_name = tag[0] %}
+{% assign tag_posts = tag[1] %}
+<h2 id="{{ tag_name | slugify }}">{{ tag_name }}</h2>
+<ul>
+  {% for post in tag_posts %}
+  <li><a href="{{ post.url | prepend: site.baseurl | replace: '//', '/' }}">{{ post.title }}</a></li>
+  {% endfor %}
+</ul>
+{% endfor %}
